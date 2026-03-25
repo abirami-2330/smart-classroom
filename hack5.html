@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>College GPS Attendance</title>
+
+<style>
+body{
+  font-family: Arial;
+  background:#f4f6f9;
+  text-align:center;
+}
+.card{
+  width:350px;
+  margin:80px auto;
+  background:white;
+  padding:20px;
+  border-radius:10px;
+  box-shadow:0 2px 10px rgba(0,0,0,0.1);
+}
+input,button{
+  width:90%;
+  padding:10px;
+  margin:10px;
+  border-radius:5px;
+  border:1px solid #ccc;
+}
+button{
+  background:#1976d2;
+  color:white;
+  border:none;
+  cursor:pointer;
+}
+#status{
+  font-weight:bold;
+  margin-top:10px;
+}
+</style>
+</head>
+
+<body>
+
+<div class="card">
+<h2>📍 College Attendance</h2>
+
+<input id="name" placeholder="Enter your name">
+
+<button onclick="markAttendance()">Mark Attendance</button>
+
+<p id="status"></p>
+</div>
+
+<script>
+
+// 📍 EXACT COLLEGE LOCATION (FROM GOOGLE MAPS)
+const collegeLat = 10.381706;
+const collegeLon = 78.820984;
+
+// 📏 Allowed Radius
+const allowedRadius = 500; // meters
+
+// ⏰ Time Restriction
+const startHour = 9;
+const endHour = 16;
+
+function markAttendance(){
+
+let name = document.getElementById("name").value;
+let status = document.getElementById("status");
+
+if(name===""){
+status.innerHTML="❌ Enter your name";
+status.style.color="red";
+return;
+}
+
+// ⏰ TIME CHECK
+let now = new Date();
+let hour = now.getHours();
+
+if(hour < startHour || hour > endHour){
+status.innerHTML="❌ Attendance closed (Time restricted)";
+status.style.color="red";
+return;
+}
+
+// 📍 GPS CHECK
+navigator.geolocation.getCurrentPosition(
+position => {
+
+let userLat = position.coords.latitude;
+let userLon = position.coords.longitude;
+
+console.log("User:", userLat, userLon);
+console.log("College:", collegeLat, collegeLon);
+
+let distance = getDistance(userLat,userLon,collegeLat,collegeLon);
+
+if(distance <= allowedRadius){
+status.innerHTML="✅ Attendance Marked (Inside College)";
+status.style.color="green";
+localStorage.setItem(name,"Present");
+}else{
+status.innerHTML="❌ Outside College ("+Math.round(distance)+"m)";
+status.style.color="red";
+}
+
+},
+error => {
+status.innerHTML="❌ Enable Location Permission";
+},
+{
+enableHighAccuracy:true,
+timeout:10000,
+maximumAge:0
+}
+);
+
+}
+
+// 📏 DISTANCE FUNCTION
+function getDistance(lat1,lon1,lat2,lon2){
+const R = 6371000;
+const dLat = (lat2-lat1)*Math.PI/180;
+const dLon = (lon2-lon1)*Math.PI/180;
+
+const a =
+Math.sin(dLat/2)**2 +
+Math.cos(lat1*Math.PI/180) *
+Math.cos(lat2*Math.PI/180) *
+Math.sin(dLon/2)**2;
+
+const c = 2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a));
+return R*c;
+}
+
+</script>
+
+</body>
+</html>
