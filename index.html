@@ -1,166 +1,81 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-<meta charset="UTF-8">
-<title>GPS Attendance System</title>
-
+<title>College Attendance</title>
 <style>
-body{
-  font-family: Arial;
-  background:#eef2f7;
-  text-align:center;
-}
-.card{
-  width:350px;
-  margin:80px auto;
-  background:white;
-  padding:20px;
-  border-radius:12px;
-  box-shadow:0 4px 15px rgba(0,0,0,0.1);
-}
-input,button{
-  width:90%;
-  padding:10px;
-  margin:10px;
-  border-radius:6px;
-  border:1px solid #ccc;
-}
-button{
-  background:#1976d2;
-  color:white;
-  border:none;
-  cursor:pointer;
-}
-#status{
-  font-weight:bold;
-  margin-top:10px;
-}
-.success{color:green;}
-.error{color:red;}
+body{font-family:Arial;text-align:center;background:#f4f6f9}
+.box{margin:100px auto;padding:20px;width:300px;background:white;border-radius:10px;box-shadow:0 0 10px #ccc}
+button{padding:10px;background:#1976d2;color:white;border:none;border-radius:5px;cursor:pointer}
 </style>
 </head>
 
 <body>
 
-<div class="card">
-<h2>📍 College Attendance</h2>
+<div class="box">
+<h3>📍 College Attendance</h3>
 
-<input id="name" placeholder="Enter Name">
+<input type="text" id="name" placeholder="Enter Name"><br><br>
 
-<button onclick="markAttendance()">Mark Attendance</button>
+<button onclick="getLocation()">Mark Attendance</button>
 
 <p id="status"></p>
 </div>
 
 <script>
 
-// 📍 Sri Bharathi Engineering College location
-const collegeLat = 10.381706;
-const collegeLon = 78.820984;
+// ✅ College Location (Sri Bharathi Engineering College for Women)
+const collegeLat = 10.3796;
+const collegeLon = 78.8203;
 
-// 📏 Radius (IMPORTANT → increase if needed)
-const allowedRadius = 800;
+// ✅ Increased radius (IMPORTANT FIX)
+const allowedRadius = 1500;
 
-// ⏰ Attendance time
-const startHour = 8;
-const endHour = 17;
-
-function markAttendance(){
-
-let name = document.getElementById("name").value.trim();
-let status = document.getElementById("status");
-
-if(name===""){
-status.innerHTML="❌ Enter your name";
-status.className="error";
-return;
+function getLocation(){
+  if(navigator.geolocation){
+    navigator.geolocation.getCurrentPosition(success,error,{
+      enableHighAccuracy:true,
+      timeout:10000,
+      maximumAge:0
+    });
+  }else{
+    document.getElementById("status").innerHTML="GPS not supported";
+  }
 }
 
-// ⏰ TIME CHECK
-let now = new Date();
-let hour = now.getHours();
+function success(pos){
+  const lat = pos.coords.latitude;
+  const lon = pos.coords.longitude;
 
-if(hour < startHour || hour > endHour){
-status.innerHTML="❌ Attendance allowed only during college hours";
-status.className="error";
-return;
+  const distance = getDistance(lat,lon,collegeLat,collegeLon);
+
+  if(distance <= allowedRadius){
+    document.getElementById("status").innerHTML =
+    "✅ Attendance Marked<br>Distance: "+Math.round(distance)+" meters";
+  }else{
+    document.getElementById("status").innerHTML =
+    "❌ Outside College ("+Math.round(distance)+" meters)";
+  }
 }
 
-// 📍 GPS CHECK
-if(!navigator.geolocation){
-status.innerHTML="❌ GPS not supported";
-status.className="error";
-return;
+function error(){
+  document.getElementById("status").innerHTML="❌ Allow Location Access";
 }
 
-status.innerHTML="📡 Checking location...";
-status.className="";
+// Distance formula
+function getDistance(lat1, lon1, lat2, lon2){
+  const R = 6371e3;
+  const φ1 = lat1 * Math.PI/180;
+  const φ2 = lat2 * Math.PI/180;
+  const Δφ = (lat2-lat1) * Math.PI/180;
+  const Δλ = (lon2-lon1) * Math.PI/180;
 
-navigator.geolocation.getCurrentPosition(
+  const a = Math.sin(Δφ/2)*Math.sin(Δφ/2) +
+            Math.cos(φ1)*Math.cos(φ2) *
+            Math.sin(Δλ/2)*Math.sin(Δλ/2);
 
-position => {
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
 
-let userLat = position.coords.latitude;
-let userLon = position.coords.longitude;
-
-// Debug (optional)
-console.log("User:", userLat, userLon);
-
-let distance = calculateDistance(userLat,userLon,collegeLat,collegeLon);
-
-console.log("Distance:", distance);
-
-// ✅ INSIDE COLLEGE
-if(distance <= allowedRadius){
-
-status.innerHTML="✅ Attendance Marked (Inside College)";
-status.className="success";
-
-// Save locally (demo)
-localStorage.setItem(name, "Present - " + new Date().toLocaleString());
-
-alert("Attendance Marked Successfully");
-
-}else{
-
-status.innerHTML="❌ Outside College ("+Math.round(distance)+" meters)";
-status.className="error";
-
-}
-
-},
-
-error => {
-status.innerHTML="❌ Please enable location permission";
-status.className="error";
-},
-
-{
-enableHighAccuracy:true,
-timeout:15000,
-maximumAge:0
-}
-);
-
-}
-
-// 📏 Distance Formula (Haversine)
-function calculateDistance(lat1, lon1, lat2, lon2){
-
-const R = 6371000;
-
-const dLat = (lat2 - lat1) * Math.PI/180;
-const dLon = (lon2 - lon1) * Math.PI/180;
-
-const a =
-Math.sin(dLat/2) * Math.sin(dLat/2) +
-Math.cos(lat1 * Math.PI/180) *
-Math.cos(lat2 * Math.PI/180) *
-Math.sin(dLon/2) * Math.sin(dLon/2);
-
-const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
-
-return R * c;
+  return R * c;
 }
 
 </script>
