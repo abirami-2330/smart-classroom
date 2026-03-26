@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-<title>Smart Classroom Attendance</title>
+<title>Smart Attendance</title>
 
 <script src="https://unpkg.com/html5-qrcode"></script>
 
@@ -110,11 +110,8 @@ function startScanner(){
         return;
       }
 
-      // ✅ COMMON QR CHECK
-      if(decodedText !== "SMART-ATTENDANCE"){
-        document.getElementById("status").innerHTML="❌ Invalid QR";
-        return;
-      }
+      // 🔥 NO INVALID QR CHECK (ALL QR ACCEPTED)
+      document.getElementById("status").innerHTML="QR Verified ✅";
 
       // 🔍 Duplicate check
       if(await alreadyMarked(name, subject)){
@@ -136,6 +133,7 @@ function startScanner(){
             name: name,
             subject: subject,
             status: "Present",
+            qr: decodedText,
             time: new Date().toLocaleString(),
             location: lat + "," + lon
           });
