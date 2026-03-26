@@ -1,15 +1,15 @@
 <!DOCTYPE html>
 <html>
 <head>
-<title>Smart Attendance</title>
+<title>Smart Classroom Attendance</title>
 
 <script src="https://unpkg.com/html5-qrcode"></script>
 
 <style>
-body{font-family:Arial;text-align:center;background:#f4f6f9}
-.box{margin:30px auto;width:320px;padding:20px;background:white;border-radius:10px}
+body{font-family:Arial;text-align:center;background:#eef2f7}
+.box{margin:20px auto;width:330px;padding:20px;background:white;border-radius:10px}
 button{padding:10px;background:#1976d2;color:white;border:none;border-radius:5px}
-select,input{padding:8px;width:90%}
+select,input{padding:8px;width:90%;margin:5px}
 #reader{width:300px;margin:auto}
 </style>
 </head>
@@ -19,7 +19,7 @@ select,input{padding:8px;width:90%}
 <div class="box">
 <h3>📱 Smart Attendance</h3>
 
-<input id="name" placeholder="Enter Name"><br><br>
+<input id="name" placeholder="Enter Name"><br>
 
 <select id="subject">
 <option>PPL</option>
@@ -28,7 +28,7 @@ select,input{padding:8px;width:90%}
 <option>RES</option>
 <option>NS</option>
 <option>OOSE</option>
-</select><br><br>
+</select><br>
 
 <button onclick="startScanner()">Scan QR</button>
 
@@ -37,20 +37,62 @@ select,input{padding:8px;width:90%}
 <p id="status"></p>
 </div>
 
-<script>
+<script type="module">
 
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import { getFirestore, collection, addDoc, query, where, getDocs } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+// 🔥 FIREBASE CONFIG (PASTE YOURS)
+const firebaseConfig = {
+  apiKey: "YOUR_KEY",
+  authDomain: "YOUR_PROJECT.firebaseapp.com",
+  projectId: "YOUR_PROJECT_ID",
+};
+
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+
+// 📍 College Location
+const collegeLat = 10.381706;
+const collegeLon = 78.820984;
+const allowedRadius = 3000;
+
+// 📅 Today date
+const today = new Date().toISOString().split("T")[0];
+
+// 🔍 Duplicate check
+async function alreadyMarked(name, subject){
+  const q = query(
+    collection(db, "attendance", today, "students"),
+    where("name","==",name),
+    where("subject","==",subject)
+  );
+  const snap = await getDocs(q);
+  return !snap.empty;
+}
+
+// 📏 Distance
+function getDistance(lat1, lon1, lat2, lon2){
+  const R=6371000;
+  const dLat=(lat2-lat1)*Math.PI/180;
+  const dLon=(lon2-lon1)*Math.PI/180;
+  const a=Math.sin(dLat/2)**2 +
+    Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*
+    Math.sin(dLon/2)**2;
+  return R*2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a));
+}
+
+// 📱 QR SCAN
 let scannerStarted = false;
 
 function startScanner(){
 
   if(scannerStarted){
-    document.getElementById("status").innerHTML="Scanner already running...";
+    document.getElementById("status").innerHTML="Scanner already running";
     return;
   }
 
   scannerStarted = true;
-
-  document.getElementById("status").innerHTML="Opening camera...";
 
   const html5QrCode = new Html5Qrcode("reader");
 
@@ -58,28 +100,56 @@ function startScanner(){
     { facingMode: "environment" },
     { fps: 10, qrbox: 250 },
 
-    function(decodedText){
+    async (decodedText) => {
 
       let name = document.getElementById("name").value;
       let subject = document.getElementById("subject").value;
 
       if(name===""){
-        alert("Enter name");
+        alert("Enter Name");
         return;
       }
 
-      // ✅ QR VALIDATION
-      if(decodedText === "SMART-ATTENDANCE"){
-        document.getElementById("status").innerHTML =
-        "✅ Attendance Marked<br>Name: "+name+"<br>Subject: "+subject;
-      }else{
+      // ✅ COMMON QR CHECK
+      if(decodedText !== "SMART-ATTENDANCE"){
         document.getElementById("status").innerHTML="❌ Invalid QR";
+        return;
       }
 
-    },
+      // 🔍 Duplicate check
+      if(await alreadyMarked(name, subject)){
+        document.getElementById("status").innerHTML="❌ Already Marked";
+        return;
+      }
 
-    function(err){}
-    
+      // 📍 GPS CHECK
+      navigator.geolocation.getCurrentPosition(async pos=>{
+
+        let lat = pos.coords.latitude;
+        let lon = pos.coords.longitude;
+
+        let dist = getDistance(lat, lon, collegeLat, collegeLon);
+
+        if(dist <= allowedRadius){
+
+          await addDoc(collection(db, "attendance", today, "students"), {
+            name: name,
+            subject: subject,
+            status: "Present",
+            time: new Date().toLocaleString(),
+            location: lat + "," + lon
+          });
+
+          document.getElementById("status").innerHTML="✅ Attendance Saved";
+
+        }else{
+          document.getElementById("status").innerHTML="❌ Outside College";
+        }
+
+      });
+
+    }
+
   ).catch(err=>{
     document.getElementById("status").innerHTML="❌ Camera Error";
     console.log(err);
