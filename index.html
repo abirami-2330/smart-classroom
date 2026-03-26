@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Smart Attendance</title>
+
+<script src="https://unpkg.com/html5-qrcode"></script>
+
+<style>
+body{font-family:Arial;text-align:center;background:#f4f6f9}
+.box{margin:30px auto;width:320px;padding:20px;background:white;border-radius:10px}
+button{padding:10px;background:#1976d2;color:white;border:none;border-radius:5px}
+select,input{padding:8px;width:90%}
+#reader{width:300px;margin:auto}
+</style>
+</head>
+
+<body>
+
+<div class="box">
+<h3>📱 Smart Attendance</h3>
+
+<input id="name" placeholder="Enter Name"><br><br>
+
+<select id="subject">
+<option>PPL</option>
+<option>DW</option>
+<option>Yoga</option>
+<option>RES</option>
+<option>NS</option>
+<option>OOSE</option>
+</select><br><br>
+
+<button onclick="startScanner()">Scan QR</button>
+
+<div id="reader"></div>
+
+<p id="status"></p>
+</div>
+
+<script>
+
+let scannerStarted = false;
+
+function startScanner(){
+
+  if(scannerStarted){
+    document.getElementById("status").innerHTML="Scanner already running...";
+    return;
+  }
+
+  scannerStarted = true;
+
+  document.getElementById("status").innerHTML="Opening camera...";
+
+  const html5QrCode = new Html5Qrcode("reader");
+
+  html5QrCode.start(
+    { facingMode: "environment" },
+    { fps: 10, qrbox: 250 },
+
+    function(decodedText){
+
+      let name = document.getElementById("name").value;
+      let subject = document.getElementById("subject").value;
+
+      if(name===""){
+        alert("Enter name");
+        return;
+      }
+
+      // ✅ QR VALIDATION
+      if(decodedText === "SMART-ATTENDANCE"){
+        document.getElementById("status").innerHTML =
+        "✅ Attendance Marked<br>Name: "+name+"<br>Subject: "+subject;
+      }else{
+        document.getElementById("status").innerHTML="❌ Invalid QR";
+      }
+
+    },
+
+    function(err){}
+    
+  ).catch(err=>{
+    document.getElementById("status").innerHTML="❌ Camera Error";
+    console.log(err);
+  });
+
+}
+
+</script>
+
+</body>
+</html>
