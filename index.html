@@ -6,8 +6,8 @@
 <script src="https://unpkg.com/html5-qrcode"></script>
 
 <style>
-body{font-family:Arial;text-align:center;background:#eef2f7}
-.box{margin:20px auto;width:330px;padding:20px;background:white;border-radius:10px}
+body{font-family:Arial;text-align:center;background:#f4f6f9}
+.box{margin:30px auto;width:320px;padding:20px;background:white;border-radius:10px}
 button{padding:10px;background:#1976d2;color:white;border:none;border-radius:5px}
 select,input{padding:8px;width:90%;margin:5px}
 #reader{width:300px;margin:auto}
@@ -34,65 +34,23 @@ select,input{padding:8px;width:90%;margin:5px}
 
 <div id="reader"></div>
 
-<p id="status"></p>
+<h3 id="status"></h3>
 </div>
 
-<script type="module">
+<script>
 
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-import { getFirestore, collection, addDoc, query, where, getDocs } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
-
-// 🔥 FIREBASE CONFIG (PASTE YOURS)
-const firebaseConfig = {
-  apiKey: "YOUR_KEY",
-  authDomain: "YOUR_PROJECT.firebaseapp.com",
-  projectId: "YOUR_PROJECT_ID",
-};
-
-const app = initializeApp(firebaseConfig);
-const db = getFirestore(app);
-
-// 📍 College Location
-const collegeLat = 10.381706;
-const collegeLon = 78.820984;
-const allowedRadius = 3000;
-
-// 📅 Today date
-const today = new Date().toISOString().split("T")[0];
-
-// 🔍 Duplicate check
-async function alreadyMarked(name, subject){
-  const q = query(
-    collection(db, "attendance", today, "students"),
-    where("name","==",name),
-    where("subject","==",subject)
-  );
-  const snap = await getDocs(q);
-  return !snap.empty;
-}
-
-// 📏 Distance
-function getDistance(lat1, lon1, lat2, lon2){
-  const R=6371000;
-  const dLat=(lat2-lat1)*Math.PI/180;
-  const dLon=(lon2-lon1)*Math.PI/180;
-  const a=Math.sin(dLat/2)**2 +
-    Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*
-    Math.sin(dLon/2)**2;
-  return R*2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a));
-}
-
-// 📱 QR SCAN
 let scannerStarted = false;
 
 function startScanner(){
 
   if(scannerStarted){
-    document.getElementById("status").innerHTML="Scanner already running";
+    document.getElementById("status").innerHTML="Scanner already running...";
     return;
   }
 
   scannerStarted = true;
+
+  document.getElementById("status").innerHTML="Opening Camera...";
 
   const html5QrCode = new Html5Qrcode("reader");
 
@@ -100,7 +58,7 @@ function startScanner(){
     { facingMode: "environment" },
     { fps: 10, qrbox: 250 },
 
-    async (decodedText) => {
+    function(decodedText){
 
       let name = document.getElementById("name").value;
       let subject = document.getElementById("subject").value;
@@ -110,43 +68,16 @@ function startScanner(){
         return;
       }
 
-      // 🔥 NO INVALID QR CHECK (ALL QR ACCEPTED)
-      document.getElementById("status").innerHTML="QR Verified ✅";
+      // 🔥 IMPORTANT: எந்த QRயும் accept
+      document.getElementById("status").innerHTML =
+      "✅ Attendance Marked<br><br>" +
+      "👤 Name: " + name + "<br>" +
+      "📚 Subject: " + subject + "<br>" +
+      "🧾 QR: " + decodedText;
 
-      // 🔍 Duplicate check
-      if(await alreadyMarked(name, subject)){
-        document.getElementById("status").innerHTML="❌ Already Marked";
-        return;
-      }
+    },
 
-      // 📍 GPS CHECK
-      navigator.geolocation.getCurrentPosition(async pos=>{
-
-        let lat = pos.coords.latitude;
-        let lon = pos.coords.longitude;
-
-        let dist = getDistance(lat, lon, collegeLat, collegeLon);
-
-        if(dist <= allowedRadius){
-
-          await addDoc(collection(db, "attendance", today, "students"), {
-            name: name,
-            subject: subject,
-            status: "Present",
-            qr: decodedText,
-            time: new Date().toLocaleString(),
-            location: lat + "," + lon
-          });
-
-          document.getElementById("status").innerHTML="✅ Attendance Saved";
-
-        }else{
-          document.getElementById("status").innerHTML="❌ Outside College";
-        }
-
-      });
-
-    }
+    function(error){}
 
   ).catch(err=>{
     document.getElementById("status").innerHTML="❌ Camera Error";
